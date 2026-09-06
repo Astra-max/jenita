@@ -34,7 +34,7 @@ A small set of AI agents drive the experience:
 
 | Layer | Technology |
 |---|---|
-| Backend | FastAPI, PostgreSQL, SQLAlchemy (async), Alembic |
+| Backend | FastAPI, SQLITE3, SQLAlchemy (async), Alembic |
 | Scheduler | Celery + Redis (or APScheduler), run as an independent process |
 | Voice | Gemini Live API (native audio) — real-time speech in/out, function calling |
 | Email | Transactional email API (SendGrid/Postmark/Resend) |
@@ -126,7 +126,7 @@ planner-frontend/
 
 ### Prerequisites
 - Python 3.11+
-- PostgreSQL 14+
+- SQLITE3
 - Redis (if using Celery)
 - Node.js 18+ (frontend)
 - A Google AI Studio account and Gemini API key (Live API access)
