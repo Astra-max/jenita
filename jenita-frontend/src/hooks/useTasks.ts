@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tasksApi } from "@/lib/api";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 import { agenda as fallbackAgenda } from "@/lib/data";
 
 export interface Task {

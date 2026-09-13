@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { authApi, setToken, clearToken, getToken } from "@/lib/api";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 
 export interface User {
   id: string;
