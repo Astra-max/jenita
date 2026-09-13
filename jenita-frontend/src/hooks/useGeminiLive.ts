@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getWebSocketURL } from "@/lib/api";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 
 export type LiveConnectionStatus =
   | "disconnected"

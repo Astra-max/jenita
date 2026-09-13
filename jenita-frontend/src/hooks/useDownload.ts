@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 import type { DownloadBuild, OS } from "@/types";
 
 async function fetchBuild(os: OS): Promise<DownloadBuild> {
