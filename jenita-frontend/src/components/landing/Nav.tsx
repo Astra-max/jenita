@@ -59,7 +59,7 @@ export function Nav() {
               href="/login"
               className="bg-black text-white px-5 py-2.5 rounded-lg text-base font-medium hover:bg-pink-600 transition-colors"
             >
-              My Account
+              Register/Log in
             </Link>
           )}
         </div>
@@ -103,7 +103,7 @@ export function Nav() {
               onClick={() => setMenuOpen(false)}
               className="bg-black text-white px-5 py-2.5 rounded-lg text-base font-medium self-start"
             >
-              My Account
+              Sign In
             </Link>
           )}
         </div>
