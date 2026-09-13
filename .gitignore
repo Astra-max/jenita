@@ -9,5 +9,6 @@ npm-debug.log*
 *.db-shm
 *.sqlite
 *.exe
-server
+/server
 dist
+
