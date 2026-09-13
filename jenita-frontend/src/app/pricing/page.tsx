@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 import { usePricing } from "@/hooks/usePricing";
 import { pricingPlans as fallback } from "@/lib/data";
 import { Button } from "@/components/ui/Button";
