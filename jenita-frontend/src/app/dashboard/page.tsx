@@ -1,83 +1,55 @@
 "use client";
 
-import { CalendarCheck, Mail, Sparkles, Clock } from "lucide-react";
-import { AgendaList } from "@/components/dashboard/AgendaList";
-import { LiveVoiceWidget } from "@/components/dashboard/LiveVoiceWidget";
-import { ReminderEscalationCard } from "@/components/dashboard/ReminderEscalationCard";
-import { useTasks } from "@/hooks/useTasks";
-import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import toast from "react-hot-toast";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logout } from "@/store/features/auth/authSlice";
 
 export default function DashboardPage() {
-  const { stats, refresh } = useTasks();
-  const { user } = useAuth();
+  const user = useAppSelector((state) => state.auth.user);
+  const router = useRouter();
+  const dispatch = useAppDispatch();
 
-  const userName = user?.full_name?.split(" ")[0] || "Sarah";
+  useEffect(() => {
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [user, router]);
 
-  const glanceCards = [
-    {
-      icon: CalendarCheck,
-      label: "Tasks completed",
-      value: stats ? `${stats.completed_count} of ${stats.total_count}` : "2 of 5",
-    },
-    {
-      icon: Sparkles,
-      label: "Focus time left",
-      value: stats?.focus_hours_left || "3.5 hrs",
-    },
-    {
-      icon: Clock,
-      label: "Next scheduled",
-      value: stats ? `${stats.next_reminder_time}` : "2:00 PM",
-    },
-  ];
+  if (!user) return null;
 
   return (
-    <div className="bg-bloom-50 py-10 md:py-16">
-      <div className="section-shell">
-        {/* Welcome Header */}
-        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-bloom-600">
-              Live Productivity Hub
-            </p>
-            <h1 className="mt-1 font-display text-display-md font-bold text-ink">
-              Good to see you, {userName}.
-            </h1>
-          </div>
+    <div className="min-h-screen bg-pink-50 flex flex-col">
+      <nav className="bg-white border-b border-pink-200">
+        <div className="max-w-[1280px] mx-auto px-5 sm:px-8 lg:px-10 flex items-center justify-between h-16 sm:h-[74px]">
+          <Link href="/" className="text-2xl font-bold text-black tracking-tight">
+            Jenita
+          </Link>
+          <button
+            onClick={() => {
+              dispatch(logout());
+              toast.success("Signed out. See you soon.");
+              router.push("/");
+            }}
+            className="bg-black text-white px-5 py-2.5 rounded-lg text-base font-medium hover:bg-pink-600 transition-colors"
+          >
+            Log out
+          </button>
         </div>
+      </nav>
 
-        {/* Glance Stats Cards */}
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {glanceCards.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="rounded-2xl border border-bloom-100 bg-white p-5 shadow-sm">
-              <Icon className="h-5 w-5 text-bloom-500" />
-              <p className="mt-3 text-xl font-bold text-ink">{value}</p>
-              <p className="text-xs text-ink-soft">{label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Main Dashboard Layout */}
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
-          {/* Agenda & Tasks Column */}
-          <div className="flex flex-col gap-6">
-            <AgendaList />
-          </div>
-
-          {/* Voice Assistant & Escalation Column */}
-          <div className="flex flex-col gap-6">
-            {/* Gemini Live Voice Stream Widget */}
-            <LiveVoiceWidget onTaskUpdated={refresh} />
-
-            {/* Voice Reminder Escalation Card */}
-            <ReminderEscalationCard
-              nextReminderTitle={stats?.next_reminder_title}
-              nextReminderTime={stats?.next_reminder_time}
-              onActionComplete={refresh}
-            />
-          </div>
-        </div>
-      </div>
+      <main className="flex-1 max-w-[1280px] w-full mx-auto px-5 sm:px-8 lg:px-10 py-16">
+        <p className="text-sm font-medium text-pink-600 mb-3">Dashboard</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-black mb-3 tracking-tight">
+          Good to see you, {user.name.split(" ")[0]}.
+        </h1>
+        <p className="text-base sm:text-lg text-[#454545] max-w-xl">
+          This is a placeholder home base for your day. Wire it up to your real
+          schedule data next — the auth flow around it is ready to go.
+        </p>
+      </main>
     </div>
   );
 }

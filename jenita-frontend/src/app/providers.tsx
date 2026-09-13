@@ -1,43 +1,32 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Provider as ReduxProvider } from "react-redux";
-import { Toaster } from "sonner";
-import { makeStore, type AppStore } from "@/store";
+import { Provider } from "react-redux";
+import { Toaster } from "react-hot-toast";
+import { store } from "@/store/store";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            refetchOnWindowFocus: false,
-            retry: 1,
-          },
-        },
-      })
-  );
-  const storeRef = useRef<AppStore>();
-  if (!storeRef.current) {
-    storeRef.current = makeStore();
-  }
-
   return (
-    <ReduxProvider store={storeRef.current}>
-    <QueryClientProvider client={queryClient}>
+    <Provider store={store}>
       {children}
       <Toaster
-        position="bottom-right"
+        position="top-center"
         toastOptions={{
+          duration: 3500,
           style: {
-            background: "#12100F",
-            color: "#FFF6F9",
-            border: "1px solid #3A3634",
+            background: "#000000",
+            color: "#ffffff",
+            fontSize: "14px",
+            borderRadius: "10px",
+            padding: "12px 16px",
+          },
+          success: {
+            iconTheme: { primary: "#f472b6", secondary: "#ffffff" },
+          },
+          error: {
+            iconTheme: { primary: "#ef4444", secondary: "#ffffff" },
           },
         }}
       />
-    </QueryClientProvider>
-    </ReduxProvider>
+    </Provider>
   );
 }
