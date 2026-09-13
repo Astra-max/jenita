@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import type { DownloadBuild, OS } from "@/types";
 
 async function fetchBuild(os: OS): Promise<DownloadBuild> {
@@ -29,9 +29,9 @@ export function useStartDownload() {
   return useMutation({
     mutationFn: triggerDownload,
     onSuccess: (data) => {
-      toast.success(`Download started for ${data.os}`, {
-        description: "Check your downloads folder once it finishes.",
-      });
+      toast.success(
+        `Download started for ${data.os}. Check your downloads folder once it finishes.`
+      );
     },
     onError: () => {
       toast.error("Couldn't start the download. Try again.");

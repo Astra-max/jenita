@@ -97,7 +97,7 @@ export function useTasks(date?: string) {
     mutationFn: ({ id, minutes }: { id: string; minutes?: number }) =>
       tasksApi.snooze(id, minutes || 15),
     onSuccess: (updated) => {
-      toast.info(`Snoozed "${updated.title}" to ${updated.time}`);
+      toast(`Snoozed "${updated.title}" to ${updated.time}`);
       refresh();
     },
     onError: (err: any) => {

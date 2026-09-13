@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Github, Instagram, Linkedin, Twitter } from "lucide-react";
 
 const columns = [
   {
@@ -29,10 +28,26 @@ const columns = [
 ];
 
 const socials = [
-  { icon: Twitter, href: "https://x.com", label: "X" },
-  { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
-  { icon: Github, href: "https://github.com", label: "GitHub" },
-  { icon: Instagram, href: "https://instagram.com", label: "Instagram" },
+  {
+    icon: "𝕏",
+    href: "https://x.com",
+    label: "X",
+  },
+  {
+    icon: "in",
+    href: "https://linkedin.com",
+    label: "LinkedIn",
+  },
+  {
+    icon: "GH",
+    href: "https://github.com",
+    label: "GitHub",
+  },
+  {
+    icon: "IG",
+    href: "https://instagram.com",
+    label: "Instagram",
+  },
 ];
 
 export function SiteFooter() {
@@ -41,18 +56,21 @@ export function SiteFooter() {
       <div className="section-shell py-16">
         <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <span className="font-display text-2xl font-extrabold text-ink">Jenita</span>
+            <span className="font-display text-2xl font-extrabold text-ink">
+              Jenita
+            </span>
+
             <div className="mt-4 flex items-center gap-3">
-              {socials.map(({ icon: Icon, href, label }) => (
+              {socials.map(({ icon, href, label }) => (
                 <a
                   key={label}
                   href={href}
                   target="_blank"
                   rel="noreferrer"
                   aria-label={label}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-bloom-500 transition-colors hover:bg-bloom-100"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-bloom-500 transition-colors hover:bg-bloom-100"
                 >
-                  <Icon className="h-4 w-4" />
+                  {icon}
                 </a>
               ))}
             </div>
@@ -61,6 +79,7 @@ export function SiteFooter() {
           {columns.map((col) => (
             <div key={col.title}>
               <p className="text-sm font-semibold text-ink">{col.title}</p>
+
               <ul className="mt-4 space-y-3">
                 {col.links.map((link) => (
                   <li key={link.label}>

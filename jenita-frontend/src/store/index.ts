@@ -10,7 +10,7 @@ export const makeStore = () =>
       download: downloadReducer,
       voiceDemo: voiceDemoReducer,
     },
-  });
+});
 
 export type AppStore = ReturnType<typeof makeStore>;
 export type RootState = ReturnType<AppStore["getState"]>;
