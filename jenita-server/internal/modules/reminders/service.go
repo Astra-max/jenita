@@ -66,7 +66,7 @@ func (s *reminderService) evaluateActiveEscalations() {
 	defer s.mu.Unlock()
 
 	now := time.Now()
-	for taskID, state := range s.activeStates {
+	for _, state := range s.activeStates {
 		if state.Status != "active" {
 			continue
 		}
