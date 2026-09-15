@@ -308,7 +308,11 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       });
       micStreamRef.current = stream;
 
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const BrowserWindow = window as Window & { webkitAudioContext?: typeof AudioContext };
+      const AudioCtx = window.AudioContext || BrowserWindow.webkitAudioContext;
+      if (!AudioCtx) {
+        throw new Error("Web Audio API is not available in this browser");
+      }
       const captureCtx = new AudioCtx({ sampleRate: 16000 });
       const micSource = captureCtx.createMediaStreamSource(stream);
 
@@ -358,7 +362,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       processor.connect(captureCtx.destination);
       setIsMicActive(true);
       toast.success("Microphone active — speak to Jenita");
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Microphone access denied or unavailable");
       console.error("Mic error:", err);
     }

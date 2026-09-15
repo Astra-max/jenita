@@ -16,17 +16,23 @@ export function clearToken(): void {
 }
 
 export function getWebSocketURL(path: string = "/api/v1/ws/live"): string {
+  const configuredBase = process.env.NEXT_PUBLIC_GEMINI_LIVE_WS_URL || process.env.NEXT_PUBLIC_WS_URL || "";
+
+  if (configuredBase) {
+    const base = configuredBase.replace(/\/$/, "");
+    const query = getToken() ? `?token=${encodeURIComponent(getToken() as string)}` : "";
+    return `${base}${path}${query}`;
+  }
+
   if (typeof window === "undefined") return `ws://localhost:8080${path}`;
 
   const token = getToken();
   const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
 
-  // If in browser dev mode or production
   const isHttps = window.location.protocol === "https:";
   const protocol = isHttps ? "wss:" : "ws:";
-  
-  // Directly connect to backend port 8080 in dev or window host
   const host = window.location.hostname === "localhost" ? "localhost:8080" : window.location.host;
+
   return `${protocol}//${host}${path}${tokenQuery}`;
 }
 
