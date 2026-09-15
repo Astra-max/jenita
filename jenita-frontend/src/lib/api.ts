@@ -20,7 +20,8 @@ export function getWebSocketURL(path: string = "/api/v1/ws/live"): string {
 
   if (configuredBase) {
     const base = configuredBase.replace(/\/$/, "");
-    const query = getToken() ? `?token=${encodeURIComponent(getToken() as string)}` : "";
+    const token = getToken();
+    const query = token ? `?token=${encodeURIComponent(token)}` : "";
     return `${base}${path}${query}`;
   }
 
@@ -38,16 +39,21 @@ export function getWebSocketURL(path: string = "/api/v1/ws/live"): string {
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
+  const requestHeaders = options.headers instanceof Headers
+    ? Object.fromEntries(options.headers.entries())
+    : typeof options.headers === "object" && options.headers !== null
+      ? (options.headers as Record<string, string>)
+      : {};
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
+    ...requestHeaders,
   };
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Rewrite /api/v1 will be proxied by Next.js or direct
   const url = endpoint.startsWith("http") ? endpoint : endpoint;
 
   const res = await fetch(url, {
@@ -58,7 +64,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   if (!res.ok) {
     let errorMsg = `Request failed (${res.status})`;
     try {
-      const data = await res.json();
+      const data = (await res.json()) as { error?: string; message?: string };
       if (data.error) errorMsg = data.error;
       else if (data.message) errorMsg = data.message;
     } catch {
@@ -67,50 +73,50 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     throw new Error(errorMsg);
   }
 
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 // Typed API services
 export const authApi = {
   login: (data: { email: string; password: string }) =>
-    apiFetch<{ token: string; user: any }>("/api/v1/auth/login", {
+    apiFetch<{ token: string; user: Record<string, unknown> }>("/api/v1/auth/login", {
       method: "POST",
       body: JSON.stringify(data),
     }),
   register: (data: { email: string; password: string; full_name: string }) =>
-    apiFetch<{ token: string; user: any }>("/api/v1/auth/register", {
+    apiFetch<{ token: string; user: Record<string, unknown> }>("/api/v1/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  me: () => apiFetch<any>("/api/v1/auth/me"),
+  me: () => apiFetch<Record<string, unknown>>("/api/v1/auth/me"),
 };
 
 export const tasksApi = {
   list: (date?: string) => {
     const q = date ? `?date=${encodeURIComponent(date)}` : "";
-    return apiFetch<any[]>(`/api/v1/tasks${q}`);
+    return apiFetch<Array<Record<string, unknown>>>(`/api/v1/tasks${q}`);
   },
   create: (data: { title: string; time: string; due_date?: string; meta?: string; priority?: string }) =>
-    apiFetch<any>("/api/v1/tasks", {
+    apiFetch<Record<string, unknown>>("/api/v1/tasks", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  update: (id: string, data: any) =>
-    apiFetch<any>(`/api/v1/tasks/${id}`, {
+  update: (id: string, data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
-    apiFetch<any>(`/api/v1/tasks/${id}`, {
+    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}`, {
       method: "DELETE",
     }),
   updateStatus: (id: string, status: "pending" | "confirmed" | "done") =>
-    apiFetch<any>(`/api/v1/tasks/${id}/status`, {
+    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
   snooze: (id: string, minutes: number = 15) =>
-    apiFetch<any>(`/api/v1/tasks/${id}/snooze`, {
+    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}/snooze`, {
       method: "PATCH",
       body: JSON.stringify({ minutes }),
     }),
@@ -128,26 +134,26 @@ export const tasksApi = {
 
 export const remindersApi = {
   triggerTest: (taskId?: string) =>
-    apiFetch<any>("/api/v1/reminders/trigger-test", {
+    apiFetch<Record<string, unknown>>("/api/v1/reminders/trigger-test", {
       method: "POST",
       body: JSON.stringify({ task_id: taskId || "" }),
     }),
-  getActive: () => apiFetch<any[]>("/api/v1/reminders/active"),
+  getActive: () => apiFetch<Array<Record<string, unknown>>>("/api/v1/reminders/active"),
   confirm: (id: string) =>
-    apiFetch<any>(`/api/v1/reminders/${id}/confirm`, {
+    apiFetch<Record<string, unknown>>(`/api/v1/reminders/${id}/confirm`, {
       method: "POST",
     }),
   snooze: (id: string, minutes: number = 15) =>
-    apiFetch<any>(`/api/v1/reminders/${id}/snooze`, {
+    apiFetch<Record<string, unknown>>(`/api/v1/reminders/${id}/snooze`, {
       method: "POST",
       body: JSON.stringify({ minutes }),
     }),
 };
 
 export const preferencesApi = {
-  get: () => apiFetch<any>("/api/v1/preferences"),
-  update: (data: any) =>
-    apiFetch<any>("/api/v1/preferences", {
+  get: () => apiFetch<Record<string, unknown>>("/api/v1/preferences"),
+  update: (data: Record<string, unknown>) =>
+    apiFetch<Record<string, unknown>>("/api/v1/preferences", {
       method: "PUT",
       body: JSON.stringify(data),
     }),

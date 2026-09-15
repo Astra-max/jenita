@@ -3,13 +3,13 @@ import {
   Bell,
   Calendar,
   LayoutDashboard,
-  Mic,
   Receipt,
   Settings,
   Wifi,
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import { LiveVoiceWidget } from "@/components/dashboard/LiveVoiceWidget";
 import { QUICK_ACTIONS, SUGGESTIONS } from "@/components/dashboard/dashboardData";
 import { SectionCard } from "@/components/dashboard/SectionCard";
 
@@ -68,17 +68,7 @@ export function DashboardSidebar() {
         </SectionCard>
 
         <SectionCard title="Voice assistant">
-          <div className="rounded-xl bg-gradient-to-br from-black to-[#1a1a1a] p-4 text-white">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center">
-                <Mic size={14} className="text-pink-400" />
-              </div>
-              <span className="text-sm font-medium">Jenita is listening</span>
-            </div>
-            <p className="text-xs text-white/60 leading-relaxed">
-              Say &ldquo;what&apos;s next&rdquo; or &ldquo;reschedule my 3pm&rdquo; any time.
-            </p>
-          </div>
+          <LiveVoiceWidget />
         </SectionCard>
 
         <SectionCard title="Suggestions">

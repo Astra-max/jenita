@@ -48,6 +48,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
   const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
   const nextPlayTimeRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectRef = useRef<(() => void) | null>(null);
   const shouldKeepConnectedRef = useRef(false);
 
   // Initialize or resume audio playback context
@@ -212,8 +213,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
             setStatusMessage(`Disconnected (${event.reason || "Connection dropped"}). Retrying in ${(delay / 1000).toFixed(0)}s (Attempt ${next}/5)...`);
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = setTimeout(() => {
-              const reconnect = () => connect();
-              reconnect();
+              reconnectRef.current?.();
             }, delay);
           } else {
             setStatus("error");
@@ -228,6 +228,10 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       setStatusMessage(message);
     }
   }, [onTaskUpdated, playPcmChunk]);
+
+  useEffect(() => {
+    reconnectRef.current = connect;
+  }, [connect]);
 
   const stopMic = useCallback(() => {
     if (processorNodeRef.current) {

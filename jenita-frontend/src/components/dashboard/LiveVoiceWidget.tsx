@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Mic, MicOff, RefreshCw, Sparkles, Send, Activity } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Mic, MicOff, RefreshCw, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VoiceWaveform } from "@/components/ui/VoiceWaveform";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
@@ -21,13 +21,12 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
     audioLevel,
     messages,
     connect,
-    disconnect,
     toggleMic,
     sendText,
   } = useGeminiLive({ onTaskUpdated });
 
   const [inputVal, setInputVal] = useState("");
-  const [hasAutoGreeted, setHasAutoGreeted] = useState(false);
+  const hasAutoGreetedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("jenita_voice_consent") === "granted") {
@@ -36,13 +35,13 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
   }, [connect]);
 
   useEffect(() => {
-    if (status === "connected" && !hasAutoGreeted) {
-      setHasAutoGreeted(true);
+    if (status === "connected" && !hasAutoGreetedRef.current) {
+      hasAutoGreetedRef.current = true;
       window.setTimeout(() => {
         sendText("Hello! Please greet me warmly and tell me what is most important today.");
       }, 900);
     }
-  }, [status, hasAutoGreeted, sendText]);
+  }, [status, sendText]);
 
   const samplePrompts = [
     "Reschedule Client sync to 5:00 PM",
@@ -116,7 +115,10 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
 
       {/* Waveform Visualizer */}
       <div className="relative my-4 flex h-20 flex-col items-center justify-center rounded-xl bg-white/[0.04] p-3">
-        <VoiceWaveform active={isMicActive || status === "connected"} />
+        <VoiceWaveform
+          active={isMicActive || status === "connected"}
+          className={audioLevel > 0 ? "text-pink-300" : "text-white/60"}
+        />
         {statusMessage && (
           <p className="mt-2 text-center text-[11px] text-white/60 line-clamp-1">
             {statusMessage}
