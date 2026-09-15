@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -73,6 +74,12 @@ func (b *GeminiLiveBridge) Start() {
 
 	if err != nil {
 		log.Printf("[GeminiLive] Upstream connection terminated: %v", err)
+		// If upstream fails due to model or invalid payload issues, fall back to simulation mode
+		if strings.Contains(err.Error(), "model") || strings.Contains(err.Error(), "Invalid JSON payload") || strings.Contains(err.Error(), "Invalid JSON") {
+			log.Println("[GeminiLive] Falling back to simulation mode due to upstream incompatibility")
+			b.reconnectMgr.SetState(StateConnected, "Connected to Jenita Assistant (Simulation Mode)")
+			HandleSimulationSession(b.clientConn, b.userID, b.taskService)
+		}
 	}
 }
 
