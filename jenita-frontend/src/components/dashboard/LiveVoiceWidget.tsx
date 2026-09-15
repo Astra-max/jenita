@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Mic, MicOff, RefreshCw, Sparkles, Send, Activity } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Mic, MicOff, RefreshCw, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VoiceWaveform } from "@/components/ui/VoiceWaveform";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
@@ -21,12 +21,27 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
     audioLevel,
     messages,
     connect,
-    disconnect,
     toggleMic,
     sendText,
   } = useGeminiLive({ onTaskUpdated });
 
   const [inputVal, setInputVal] = useState("");
+  const hasAutoGreetedRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("jenita_voice_consent") === "granted") {
+      connect();
+    }
+  }, [connect]);
+
+  useEffect(() => {
+    if (status === "connected" && !hasAutoGreetedRef.current) {
+      hasAutoGreetedRef.current = true;
+      window.setTimeout(() => {
+        sendText("Hello! Please greet me warmly and tell me what is most important today.");
+      }, 900);
+    }
+  }, [status, sendText]);
 
   const samplePrompts = [
     "Reschedule Client sync to 5:00 PM",
@@ -100,7 +115,10 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
 
       {/* Waveform Visualizer */}
       <div className="relative my-4 flex h-20 flex-col items-center justify-center rounded-xl bg-white/[0.04] p-3">
-        <VoiceWaveform active={isMicActive || status === "connected"} />
+        <VoiceWaveform
+          active={isMicActive || status === "connected"}
+          className={audioLevel > 0 ? "text-pink-300" : "text-white/60"}
+        />
         {statusMessage && (
           <p className="mt-2 text-center text-[11px] text-white/60 line-clamp-1">
             {statusMessage}
@@ -166,7 +184,7 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
           )}
         >
           {isMicActive ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          {isMicActive ? "Mute Microphone" : "Speak to Jenita"}
+          {isMicActive ? "Mute" : "Go"}
         </button>
 
         <form onSubmit={handleSend} className="relative flex items-center">
