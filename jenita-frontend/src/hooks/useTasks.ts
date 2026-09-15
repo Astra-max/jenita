@@ -22,7 +22,7 @@ export function useTasks(date?: string) {
   const queryClient = useQueryClient();
 
   // Query: Tasks
-  const tasksQuery = useQuery({
+  const tasksQuery = useQuery<Task[]>({
     queryKey: ["tasks", date || "today"],
     queryFn: async () => {
       try {
@@ -36,7 +36,13 @@ export function useTasks(date?: string) {
   });
 
   // Query: Stats
-  const statsQuery = useQuery({
+  const statsQuery = useQuery<{
+    completed_count: number;
+    total_count: number;
+    focus_hours_left: string;
+    next_reminder_title: string;
+    next_reminder_time: string;
+  }>({
     queryKey: ["task_stats", date || "today"],
     queryFn: async () => {
       try {

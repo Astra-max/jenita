@@ -1,5 +1,32 @@
 const TOKEN_KEY = "jenita_auth_token";
 
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  created_at: string;
+}
+
+export type TaskStatus = "pending" | "confirmed" | "done";
+
+export interface Task {
+  id: string;
+  user_id: string;
+  title: string;
+  time: string;
+  due_date: string;
+  meta: string;
+  status: TaskStatus;
+  priority: "low" | "normal" | "high" | "urgent";
+  recurrence?: string;
+  created_at?: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
@@ -79,44 +106,44 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 // Typed API services
 export const authApi = {
   login: (data: { email: string; password: string }) =>
-    apiFetch<{ token: string; user: Record<string, unknown> }>("/api/v1/auth/login", {
+    apiFetch<AuthResponse>("/api/v1/auth/login", {
       method: "POST",
       body: JSON.stringify(data),
     }),
   register: (data: { email: string; password: string; full_name: string }) =>
-    apiFetch<{ token: string; user: Record<string, unknown> }>("/api/v1/auth/register", {
+    apiFetch<AuthResponse>("/api/v1/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  me: () => apiFetch<Record<string, unknown>>("/api/v1/auth/me"),
+  me: () => apiFetch<User>("/api/v1/auth/me"),
 };
 
 export const tasksApi = {
   list: (date?: string) => {
     const q = date ? `?date=${encodeURIComponent(date)}` : "";
-    return apiFetch<Array<Record<string, unknown>>>(`/api/v1/tasks${q}`);
+    return apiFetch<Task[]>(`/api/v1/tasks${q}`);
   },
   create: (data: { title: string; time: string; due_date?: string; meta?: string; priority?: string }) =>
-    apiFetch<Record<string, unknown>>("/api/v1/tasks", {
+    apiFetch<Task>("/api/v1/tasks", {
       method: "POST",
       body: JSON.stringify(data),
     }),
   update: (id: string, data: Record<string, unknown>) =>
-    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}`, {
+    apiFetch<Task>(`/api/v1/tasks/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
-    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}`, {
+    apiFetch<Task>(`/api/v1/tasks/${id}`, {
       method: "DELETE",
     }),
-  updateStatus: (id: string, status: "pending" | "confirmed" | "done") =>
-    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}/status`, {
+  updateStatus: (id: string, status: TaskStatus) =>
+    apiFetch<Task>(`/api/v1/tasks/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
   snooze: (id: string, minutes: number = 15) =>
-    apiFetch<Record<string, unknown>>(`/api/v1/tasks/${id}/snooze`, {
+    apiFetch<Task>(`/api/v1/tasks/${id}/snooze`, {
       method: "PATCH",
       body: JSON.stringify({ minutes }),
     }),
