@@ -17,7 +17,7 @@ export interface TranscriptMessage {
   text: string;
   toolCall?: {
     name: string;
-    result?: any;
+    result?: unknown;
   };
   timestamp: number;
 }
@@ -27,6 +27,13 @@ interface UseGeminiLiveOptions {
 }
 
 export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
+  const CONSENT_KEY = "jenita_voice_consent";
+
+  const hasVoiceConsent = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(CONSENT_KEY) === "granted";
+  }, []);
+
   const [status, setStatus] = useState<LiveConnectionStatus>("disconnected");
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [maxAttempts, setMaxAttempts] = useState(5);
@@ -48,7 +55,11 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
   // Initialize or resume audio playback context
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const BrowserWindow = window as Window & { webkitAudioContext?: typeof AudioContext };
+      const AudioCtx = window.AudioContext || BrowserWindow.webkitAudioContext;
+      if (!AudioCtx) {
+        throw new Error("Web Audio API is not available in this browser");
+      }
       audioContextRef.current = new AudioCtx({ sampleRate: 24000 });
     }
     if (audioContextRef.current.state === "suspended") {
@@ -218,9 +229,10 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
           return next;
         });
       };
-    } catch (e: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to initialize WebSocket";
       setStatus("error");
-      setStatusMessage(e.message || "Failed to initialize WebSocket");
+      setStatusMessage(message);
     }
   }, [getAudioContext, onTaskUpdated, playPcmChunk]);
 
@@ -278,6 +290,11 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
 
   // Start microphone streaming (PCM 16kHz)
   const startMic = useCallback(async () => {
+    if (!hasVoiceConsent()) {
+      toast.error("Please approve voice consent before using the microphone.");
+      return;
+    }
+
     try {
       getAudioContext();
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -345,7 +362,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       toast.error("Microphone access denied or unavailable");
       console.error("Mic error:", err);
     }
-  }, [getAudioContext]);
+  }, [getAudioContext, hasVoiceConsent]);
 
   // Stop microphone
   const stopMic = useCallback(() => {
