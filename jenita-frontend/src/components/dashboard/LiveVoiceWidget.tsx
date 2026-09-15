@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mic, MicOff, RefreshCw, Sparkles, Send, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VoiceWaveform } from "@/components/ui/VoiceWaveform";
@@ -27,6 +27,22 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
   } = useGeminiLive({ onTaskUpdated });
 
   const [inputVal, setInputVal] = useState("");
+  const [hasAutoGreeted, setHasAutoGreeted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("jenita_voice_consent") === "granted") {
+      connect();
+    }
+  }, [connect]);
+
+  useEffect(() => {
+    if (status === "connected" && !hasAutoGreeted) {
+      setHasAutoGreeted(true);
+      window.setTimeout(() => {
+        sendText("Hello! Please greet me warmly and tell me what is most important today.");
+      }, 900);
+    }
+  }, [status, hasAutoGreeted, sendText]);
 
   const samplePrompts = [
     "Reschedule Client sync to 5:00 PM",
@@ -166,7 +182,7 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
           )}
         >
           {isMicActive ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          {isMicActive ? "Mute Microphone" : "Speak to Jenita"}
+          {isMicActive ? "Mute" : "Go"}
         </button>
 
         <form onSubmit={handleSend} className="relative flex items-center">

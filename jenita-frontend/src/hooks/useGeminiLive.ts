@@ -46,8 +46,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
-  const audioQueueRef = useRef<Float32Array[]>([]);
-  const isPlayingAudioRef = useRef(false);
   const nextPlayTimeRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shouldKeepConnectedRef = useRef(false);
@@ -102,7 +100,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
     }
   }, [getAudioContext]);
 
-  // Connect WebSocket to Go backend
   const connect = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
       return;
@@ -127,7 +124,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
         try {
           const msg = JSON.parse(event.data);
 
-          // Handle server-side connection status notifications (e.g. upstream reconnecting)
           if (msg.type === "connection_status") {
             if (msg.status === "reconnecting") {
               setStatus("reconnecting");
@@ -144,7 +140,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
             return;
           }
 
-          // Handle tool call execution notification
           if (msg.type === "tool_call_executed") {
             const toolMsg = msg.result?.message || `Executed ${msg.tool}`;
             setMessages((prev) => [
@@ -162,7 +157,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
             return;
           }
 
-          // Handle transcripts (simulation or model turns)
           if (msg.type === "transcript") {
             setMessages((prev) => [
               ...prev,
@@ -176,7 +170,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
             return;
           }
 
-          // Handle Gemini server content audio
           if (msg.serverContent?.modelTurn?.parts) {
             for (const part of msg.serverContent.modelTurn.parts) {
               if (part.inlineData?.data) {
@@ -211,7 +204,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
           return;
         }
 
-        // Automatic retry loop with exponential backoff on client side if disconnected
         setStatus("reconnecting");
         setReconnectAttempt((prev) => {
           const next = prev + 1;
@@ -220,7 +212,8 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
             setStatusMessage(`Disconnected (${event.reason || "Connection dropped"}). Retrying in ${(delay / 1000).toFixed(0)}s (Attempt ${next}/5)...`);
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = setTimeout(() => {
-              connect();
+              const reconnect = () => connect();
+              reconnect();
             }, delay);
           } else {
             setStatus("error");
@@ -234,9 +227,21 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       setStatus("error");
       setStatusMessage(message);
     }
-  }, [getAudioContext, onTaskUpdated, playPcmChunk]);
+  }, [onTaskUpdated, playPcmChunk]);
 
-  // Disconnect WebSocket
+  const stopMic = useCallback(() => {
+    if (processorNodeRef.current) {
+      processorNodeRef.current.disconnect();
+      processorNodeRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
+    setIsMicActive(false);
+    setAudioLevel(0);
+  }, []);
+
   const disconnect = useCallback(() => {
     shouldKeepConnectedRef.current = false;
     if (reconnectTimeoutRef.current) {
@@ -251,7 +256,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
     setStatus("disconnected");
     setStatusMessage("Disconnected");
     setReconnectAttempt(0);
-  }, []);
+  }, [stopMic]);
 
   // Send typed text prompt to voice agent
   const sendText = useCallback((text: string) => {
@@ -271,7 +276,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       },
     ]);
 
-    // Send formatted client content to Go backend
     const payload = {
       clientContent: {
         turns: [
@@ -282,7 +286,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
         ],
         turnComplete: true,
       },
-      text, // Also top-level text for simulation mode
+      text,
     };
 
     wsRef.current.send(JSON.stringify(payload));
@@ -367,20 +371,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       console.error("Mic error:", err);
     }
   }, [getAudioContext, hasVoiceConsent]);
-
-  // Stop microphone
-  const stopMic = useCallback(() => {
-    if (processorNodeRef.current) {
-      processorNodeRef.current.disconnect();
-      processorNodeRef.current = null;
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((track) => track.stop());
-      micStreamRef.current = null;
-    }
-    setIsMicActive(false);
-    setAudioLevel(0);
-  }, []);
 
   // Toggle mic
   const toggleMic = useCallback(() => {
