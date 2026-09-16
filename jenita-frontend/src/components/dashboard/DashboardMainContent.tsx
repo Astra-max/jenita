@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
+import { toast } from "react-hot-toast";
 import {
   Calendar,
   Laptop,
@@ -100,6 +102,24 @@ function DeviceCard({ device }: { device: (typeof DEVICES)[number] }) {
 }
 
 export function DashboardMainContent({ user }: { user: { name: string; email: string } }) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ title: "", time: "09:00", due_date: "", meta: "", priority: "normal" });
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const payload = { ...form };
+      const res = await apiFetch<any>(`/api/v1/reminders?start_now=${false}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      toast.success("Reminder created");
+      setShowCreate(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create reminder");
+    }
+  }
+
   const totalExpenses = useMemo(() => EXPENSES.reduce((sum, expense) => sum + expense.amount, 0), []);
   const urgentCount = useMemo(
     () => EVENTS.filter((event) => event.type === "urgent" || event.type === "deadline").length,
@@ -141,7 +161,7 @@ export function DashboardMainContent({ user }: { user: { name: string; email: st
           <SectionCard
             title="Today&apos;s events"
             action={
-              <button className="flex items-center gap-1.5 text-xs font-medium text-pink-600 hover:text-pink-700">
+                          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 text-xs font-medium text-pink-600 hover:text-pink-700">
                 <PlusCircle size={14} />
                 Add
               </button>
@@ -161,6 +181,7 @@ export function DashboardMainContent({ user }: { user: { name: string; email: st
             title="Expense tracker"
             action={<span className="text-xs font-medium text-[#828282]">${totalExpenses.toFixed(2)} this month</span>}
           >
+          
             <div className="flex flex-col gap-4">
               {EXPENSES.map((expense) => (
                 <ExpenseBar key={expense.id} {...expense} />
@@ -203,6 +224,34 @@ export function DashboardMainContent({ user }: { user: { name: string; email: st
           </SectionCard>
         </div>
       </div>
+
+      {/* Create Reminder Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-bold mb-3">Create Reminder</h3>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Title</label>
+                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1 block w-full rounded-md border-gray-200 shadow-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Time</label>
+                <input value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} type="time" className="mt-1 block w-full rounded-md border-gray-200 shadow-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Due date</label>
+                <input value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} type="date" className="mt-1 block w-full rounded-md border-gray-200 shadow-sm" />
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="submit" className="rounded-md bg-black text-white px-3 py-2">Create</button>
+                <button type="button" onClick={() => setShowCreate(false)} className="rounded-md border px-3 py-2">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

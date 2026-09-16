@@ -1,15 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { authApi, setToken, clearToken, getToken } from "@/lib/api";
+import { authApi, setToken, clearToken, getToken, type User } from "@/lib/api";
 import { toast } from "react-hot-toast";
-
-export interface User {
-  id: string;
-  email: string;
-  full_name: string;
-  created_at: string;
-}
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);

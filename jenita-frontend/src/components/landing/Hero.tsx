@@ -18,8 +18,20 @@ export function Hero() {
     setShowConsent(true);
   };
 
-  const acceptConsent = () => {
+  const acceptConsent = async () => {
     if (typeof window !== "undefined") {
+      // Try to request microphone permission immediately so the user sees the native prompt.
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Stop tracks immediately — we only wanted to prompt for permission now.
+          stream.getTracks().forEach((t) => t.stop());
+        }
+      } catch (e) {
+        // Ignore errors — permission may be denied. We still persist consent choice for UI flows.
+        console.warn("Microphone permission request failed or was denied", e);
+      }
+
       localStorage.setItem("jenita_voice_consent", "granted");
     }
     router.push("/login");
