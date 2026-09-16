@@ -125,6 +125,11 @@ func (b *GeminiLiveBridge) connectAndStream(clientMsgChan <-chan []byte) error {
 
 	b.reconnectMgr.SetState(StateConnected, "Connected to Google Gemini Live API (Audio Streaming Ready)")
 	log.Println("[GeminiLive] Connected and setup successfully sent!")
+	b.sendToClient(map[string]interface{}{
+		"type": "transcript",
+		"speaker": "jenita",
+		"text": "Hello! I’m Jenita. I’m ready to help with your reminders, agenda, and daily planning.",
+	})
 
 	// 2. Start two concurrent streams: client->upstream, upstream->client
 	upstreamErrCh := make(chan error, 2)
