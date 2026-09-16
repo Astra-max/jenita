@@ -87,11 +87,11 @@ func (b *GeminiLiveBridge) connectAndStream(clientMsgChan <-chan []byte) error {
 	b.reconnectMgr.SetState(StateConnecting, "Establishing connection to Google Gemini Live API...")
 
 	geminiURL := url.URL{
-		Scheme:   "wss",
-		Host:     "generativelanguage.googleapis.com",
-		Path:     "/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent",
-		RawQuery: "key=" + b.cfg.GeminiAPIKey,
-	}
+	Scheme:   "wss",
+	Host:     "generativelanguage.googleapis.com",
+	Path:     "/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent",
+	RawQuery: "key=" + b.cfg.GeminiAPIKey,
+}
 
 	dialer := websocket.DefaultDialer
 	dialer.HandshakeTimeout = 10 * time.Second

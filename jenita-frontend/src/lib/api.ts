@@ -64,6 +64,16 @@ export function getWebSocketURL(path: string = "/api/v1/ws/live"): string {
   return `${protocol}//${host}${path}${tokenQuery}`;
 }
 
+function getApiBase(): string {
+  const configured = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_GEMINI_LIVE_WS_URL || "";
+  if (configured) return configured.replace(/\/$/, "");
+  if (typeof window === "undefined") return "http://localhost:8080";
+  const isHttps = window.location.protocol === "https:";
+  const protocol = isHttps ? "https:" : "http:";
+  const host = window.location.hostname === "localhost" ? "localhost:8080" : window.location.host;
+  return `${protocol}//${host}`;
+}
+
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const requestHeaders = options.headers instanceof Headers
@@ -81,9 +91,10 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const url = endpoint.startsWith("http") ? endpoint : endpoint;
+  const base = getApiBase();
+  const fullUrl = endpoint.startsWith("http") ? endpoint : `${base}${endpoint.startsWith("/") ? endpoint : "/" + endpoint}`;
 
-  const res = await fetch(url, {
+  const res = await fetch(fullUrl, {
     ...options,
     headers,
   });

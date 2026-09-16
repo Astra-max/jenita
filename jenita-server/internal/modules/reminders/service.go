@@ -29,6 +29,12 @@ type Service interface {
 	GetActiveEscalations(userID string) []*EscalationState
 	AcknowledgeReminder(taskID, userID string) error
 	SnoozeReminder(taskID, userID string, minutes int) error
+
+	// Reminder CRUD convenience wrappers around tasks service
+	CreateReminder(userID string, req *tasks.CreateTaskRequest, startNow bool) (*tasks.Task, *EscalationState, error)
+	GetReminder(id, userID string) (*tasks.Task, error)
+	UpdateReminder(id, userID string, req *tasks.UpdateTaskRequest) (*tasks.Task, error)
+	DeleteReminder(id, userID string) error
 }
 
 type reminderService struct {
@@ -182,6 +188,42 @@ func (s *reminderService) SnoozeReminder(taskID, userID string, minutes int) err
 
 	_, err := s.taskService.SnoozeTask(taskID, userID, minutes)
 	return err
+}
+
+// CreateReminder creates a task via the tasks service and optionally triggers the reminder immediately
+func (s *reminderService) CreateReminder(userID string, req *tasks.CreateTaskRequest, startNow bool) (*tasks.Task, *EscalationState, error) {
+	// Delegate task creation to tasks service
+	task, err := s.taskService.CreateTask(userID, req)
+	if err != nil {
+	return nil, nil, err
+	}
+
+	var state *EscalationState
+	if startNow {
+	st, err := s.TriggerTestReminder(userID, task.ID)
+	if err == nil {
+		state = st
+	}
+	}
+
+	return task, state, nil
+}
+
+func (s *reminderService) GetReminder(id, userID string) (*tasks.Task, error) {
+	return s.taskService.GetTask(id, userID)
+}
+
+func (s *reminderService) UpdateReminder(id, userID string, req *tasks.UpdateTaskRequest) (*tasks.Task, error) {
+	return s.taskService.UpdateTask(id, userID, req)
+}
+
+func (s *reminderService) DeleteReminder(id, userID string) error {
+	// Also remove any active escalation state
+	s.mu.Lock()
+	delete(s.activeStates, id)
+	s.mu.Unlock()
+
+	return s.taskService.DeleteTask(id, userID)
 }
 
 func (s *reminderService) logReminderEvent(taskID, userID, channel, status string, attempt int) {

@@ -122,76 +122,87 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       };
 
       ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-
-          if (msg.type === "connection_status") {
-            if (msg.status === "reconnecting") {
-              setStatus("reconnecting");
-              setReconnectAttempt(msg.attempt || 1);
-              setMaxAttempts(msg.max_attempts || 5);
-              setStatusMessage(msg.message || "Upstream Gemini Live reconnecting with exponential backoff...");
-            } else if (msg.status === "connected") {
-              setStatus("connected");
-              setStatusMessage(msg.message || "Connected to voice assistant");
-            } else if (msg.status === "error") {
-              setStatus("error");
-              setStatusMessage(msg.message || "Connection error");
+        // Support string, Blob, and ArrayBuffer payloads from server
+        (async () => {
+          try {
+            let raw: any = event.data as any;
+            if (raw instanceof Blob) {
+              raw = await raw.text();
+            } else if (raw instanceof ArrayBuffer) {
+              raw = new TextDecoder().decode(new Uint8Array(raw));
             }
-            return;
-          }
 
-          if (msg.type === "tool_call_executed") {
-            const toolMsg = msg.result?.message || `Executed ${msg.tool}`;
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Math.random().toString(),
-                speaker: "system",
-                text: `⚡ ${toolMsg}`,
-                toolCall: { name: msg.tool, result: msg.result },
-                timestamp: Date.now(),
-              },
-            ]);
-            toast.success(toolMsg);
-            if (onTaskUpdated) onTaskUpdated();
-            return;
-          }
+            // If the server sent a plain object already, use it; otherwise parse JSON
+            const msg = typeof raw === "string" ? JSON.parse(raw) : raw;
 
-          if (msg.type === "transcript") {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Math.random().toString(),
-                speaker: msg.speaker,
-                text: msg.text,
-                timestamp: Date.now(),
-              },
-            ]);
-            return;
-          }
-
-          if (msg.serverContent?.modelTurn?.parts) {
-            for (const part of msg.serverContent.modelTurn.parts) {
-              if (part.inlineData?.data) {
-                playPcmChunk(part.inlineData.data);
+            if (msg.type === "connection_status") {
+              if (msg.status === "reconnecting") {
+                setStatus("reconnecting");
+                setReconnectAttempt(msg.attempt || 1);
+                setMaxAttempts(msg.max_attempts || 5);
+                setStatusMessage(msg.message || "Upstream Gemini Live reconnecting with exponential backoff...");
+              } else if (msg.status === "connected") {
+                setStatus("connected");
+                setStatusMessage(msg.message || "Connected to voice assistant");
+              } else if (msg.status === "error") {
+                setStatus("error");
+                setStatusMessage(msg.message || "Connection error");
               }
-              if (part.text) {
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    id: Math.random().toString(),
-                    speaker: "jenita",
-                    text: part.text,
-                    timestamp: Date.now(),
-                  },
-                ]);
+              return;
+            }
+
+            if (msg.type === "tool_call_executed") {
+              const toolMsg = msg.result?.message || `Executed ${msg.tool}`;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Math.random().toString(),
+                  speaker: "system",
+                  text: `⚡ ${toolMsg}`,
+                  toolCall: { name: msg.tool, result: msg.result },
+                  timestamp: Date.now(),
+                },
+              ]);
+              toast.success(toolMsg);
+              if (onTaskUpdated) onTaskUpdated();
+              return;
+            }
+
+            if (msg.type === "transcript") {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Math.random().toString(),
+                  speaker: msg.speaker,
+                  text: msg.text,
+                  timestamp: Date.now(),
+                },
+              ]);
+              return;
+            }
+
+            if (msg.serverContent?.modelTurn?.parts) {
+              for (const part of msg.serverContent.modelTurn.parts) {
+                if (part.inlineData?.data) {
+                  playPcmChunk(part.inlineData.data);
+                }
+                if (part.text) {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: Math.random().toString(),
+                      speaker: "jenita",
+                      text: part.text,
+                      timestamp: Date.now(),
+                    },
+                  ]);
+                }
               }
             }
+          } catch (err) {
+            console.error("Error handling WS message:", err);
           }
-        } catch (err) {
-          console.error("Error handling WS message:", err);
-        }
+        })();
       };
 
       ws.onerror = () => {

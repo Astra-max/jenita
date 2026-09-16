@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { authApi, setToken } from "../../../lib/api";
 
 export interface User {
   id: string;
@@ -35,20 +36,20 @@ export const loginUser = createAsyncThunk(
     payload: { email: string; password: string },
     { rejectWithValue }
   ) => {
-    await wait(900);
-    const email = payload.email.trim().toLowerCase();
-    if (email === MOCK_ACCOUNT.email && payload.password === MOCK_ACCOUNT.password) {
-      return { id: "usr_1", name: MOCK_ACCOUNT.name, email } satisfies User;
+    try {
+      const res = await authApi.login({ email: payload.email, password: payload.password });
+      // Persist token for subsequent requests
+      setToken(res.token);
+      // Map server user shape to local User interface
+      const usr = {
+        id: res.user.id,
+        name: (res.user.full_name as string) || (res.user.email as string).split("@")[0],
+        email: res.user.email as string,
+      } as User;
+      return usr;
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Authentication failed");
     }
-    // Any other well-formed credentials also succeed, so the flow is explorable.
-    if (payload.password.length >= 6) {
-      return {
-        id: crypto.randomUUID(),
-        name: email.split("@")[0],
-        email,
-      } satisfies User;
-    }
-    return rejectWithValue("That email and password don't match an account.");
   }
 );
 
@@ -58,15 +59,18 @@ export const signupUser = createAsyncThunk(
     payload: { name: string; email: string; password: string },
     { rejectWithValue }
   ) => {
-    await wait(900);
-    if (payload.email.trim().toLowerCase() === MOCK_ACCOUNT.email) {
-      return rejectWithValue("An account with that email already exists.");
+    try {
+      const res = await authApi.register({ email: payload.email, password: payload.password, full_name: payload.name });
+      setToken(res.token);
+      const usr = {
+        id: res.user.id,
+        name: res.user.full_name as string,
+        email: res.user.email as string,
+      } as User;
+      return usr;
+    } catch (err: any) {
+      return rejectWithValue(err.message || "Registration failed");
     }
-    return {
-      id: crypto.randomUUID(),
-      name: payload.name.trim(),
-      email: payload.email.trim().toLowerCase(),
-    } satisfies User;
   }
 );
 

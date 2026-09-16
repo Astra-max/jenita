@@ -28,11 +28,30 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
   const [inputVal, setInputVal] = useState("");
   const hasAutoGreetedRef = useRef(false);
 
+  const [micPermission, setMicPermission] = useState<'granted'|'denied'|'prompt'|'unknown'>('unknown');
+
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("jenita_voice_consent") === "granted") {
       connect();
     }
   }, [connect]);
+
+  useEffect(() => {
+    // Query microphone permission state where supported
+    (async () => {
+      try {
+        if (typeof navigator !== 'undefined' && (navigator as any).permissions && (navigator as any).permissions.query) {
+          const p = await (navigator as any).permissions.query({ name: 'microphone' });
+          setMicPermission(p.state || 'unknown');
+          p.onchange = () => setMicPermission(p.state || 'unknown');
+        } else {
+          setMicPermission('unknown');
+        }
+      } catch (e) {
+        setMicPermission('unknown');
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (status === "connected" && !hasAutoGreetedRef.current) {
@@ -123,6 +142,21 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
           <p className="mt-2 text-center text-[11px] text-white/60 line-clamp-1">
             {statusMessage}
           </p>
+        )}
+
+        {/* Microphone permission prompt banner */}
+        {micPermission !== 'granted' && (
+          <div className="absolute inset-x-2 -bottom-8 rounded-md bg-white/5 p-2 text-xs text-white/80 flex items-center justify-between gap-2">
+            <div>Microphone permission needed to speak with Jenita.</div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleMic()}
+                className="rounded-md bg-bloom-400 px-2 py-1 text-[11px] font-semibold"
+              >
+                Allow microphone
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
