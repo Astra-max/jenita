@@ -56,6 +56,10 @@ func GetGeminiToolDeclarations() []GeminiToolDeclaration {
 								Type:        "STRING",
 								Description: "Category or extra context, e.g. 'Focus block', 'Zoom · with Design', 'Personal'",
 							},
+							"priority": {
+								Type:        "STRING",
+								Description: "Priority or urgency level: low, normal, high, urgent.",
+							},
 						},
 						Required: []string{"title", "time"},
 					},
@@ -81,6 +85,24 @@ func GetGeminiToolDeclarations() []GeminiToolDeclaration {
 							"title": {
 								Type:        "STRING",
 								Description: "Optional new title if renaming the task",
+							},
+							"priority": {
+								Type:        "STRING",
+								Description: "Optional urgency level: low, normal, high, urgent",
+							},
+						},
+						Required: []string{"task_identifier"},
+					},
+				},
+				{
+					Name:        "delete_task",
+					Description: "Delete a task or reminder from the agenda when the user asks to remove or cancel it",
+					Parameters: &JSONSchema{
+						Type: "OBJECT",
+						Properties: map[string]PropertyDef{
+							"task_identifier": {
+								Type:        "STRING",
+								Description: "The title or ID of the task or reminder to remove",
 							},
 						},
 						Required: []string{"task_identifier"},
@@ -155,12 +177,17 @@ func ExecuteTool(userID string, call ToolCall, taskService tasks.Service) ToolRe
 		timeVal, _ := call.Args["time"].(string)
 		meta, _ := call.Args["meta"].(string)
 		dueDate, _ := call.Args["due_date"].(string)
+		priority, _ := call.Args["priority"].(string)
+		if priority == "" {
+			priority = "normal"
+		}
 
 		req := &tasks.CreateTaskRequest{
-			Title:   title,
-			Time:    timeVal,
-			DueDate: dueDate,
-			Meta:    meta,
+			Title:    title,
+			Time:     timeVal,
+			DueDate:  dueDate,
+			Meta:     meta,
+			Priority: priority,
 		}
 		task, err := taskService.CreateTask(userID, req)
 		if err != nil {
@@ -177,14 +204,37 @@ func ExecuteTool(userID string, call ToolCall, taskService tasks.Service) ToolRe
 		timeVal, _ := call.Args["time"].(string)
 		dueDate, _ := call.Args["due_date"].(string)
 		title, _ := call.Args["title"].(string)
+		priority, _ := call.Args["priority"].(string)
 
 		task, err := taskService.FindAndUpdateByVoice(userID, ident, timeVal, dueDate, title)
 		if err != nil {
 			return ToolResult{Success: false, Message: fmt.Sprintf("Could not reschedule task: %v", err)}
 		}
+		if priority != "" {
+			_, updateErr := taskService.UpdateTask(task.ID, userID, &tasks.UpdateTaskRequest{Priority: &priority})
+			if updateErr != nil {
+				return ToolResult{Success: false, Message: fmt.Sprintf("Updated the time but could not set priority: %v", updateErr)}
+			}
+			task.Priority = priority
+		}
 		return ToolResult{
 			Success: true,
 			Message: fmt.Sprintf("Rescheduled '%s' to %s.", task.Title, task.Time),
+			Data:    task,
+		}
+
+	case "delete_task":
+		ident, _ := call.Args["task_identifier"].(string)
+		task, err := taskService.FindAndUpdateByVoice(userID, ident, "", "", "")
+		if err != nil {
+			return ToolResult{Success: false, Message: fmt.Sprintf("Could not find task to delete: %v", err)}
+		}
+		if err := taskService.DeleteTask(task.ID, userID); err != nil {
+			return ToolResult{Success: false, Message: fmt.Sprintf("Could not delete task: %v", err)}
+		}
+		return ToolResult{
+			Success: true,
+			Message: fmt.Sprintf("Deleted '%s' from your agenda.", task.Title),
 			Data:    task,
 		}
 

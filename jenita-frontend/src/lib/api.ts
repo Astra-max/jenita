@@ -52,26 +52,28 @@ export function getWebSocketURL(path: string = "/api/v1/ws/live"): string {
     return `${base}${path}${query}`;
   }
 
-  if (typeof window === "undefined") return `ws://localhost:8080${path}`;
+  if (typeof window === "undefined") {
+    return `wss://jenita-server.onrender.com${path}`;
+  }
 
   const token = getToken();
   const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
 
-  const isHttps = window.location.protocol === "https:";
-  const protocol = isHttps ? "wss:" : "ws:";
-  const host = window.location.hostname === "localhost" ? "localhost:8080" : window.location.host;
+  if (window.location.hostname === "localhost") {
+    return `ws://localhost:8080${path}${tokenQuery}`;
+  }
 
-  return `${protocol}//${host}${path}${tokenQuery}`;
+  return `wss://jenita-server.onrender.com${path}${tokenQuery}`;
 }
 
 function getApiBase(): string {
   const configured = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_GEMINI_LIVE_WS_URL || "";
   if (configured) return configured.replace(/\/$/, "");
-  if (typeof window === "undefined") return "http://localhost:8080";
-  const isHttps = window.location.protocol === "https:";
-  const protocol = isHttps ? "https:" : "http:";
-  const host = window.location.hostname === "localhost" ? "localhost:8080" : window.location.host;
-  return `${protocol}//${host}`;
+  if (typeof window === "undefined") return "https://jenita-server.onrender.com";
+  if (window.location.hostname === "localhost") {
+    return "http://localhost:8080";
+  }
+  return "https://jenita-server.onrender.com";
 }
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {

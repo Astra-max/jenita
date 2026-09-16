@@ -109,11 +109,12 @@ export function DashboardMainContent({ user }: { user: { name: string; email: st
     e.preventDefault();
     try {
       const payload = { ...form };
-      const res = await apiFetch<any>(`/api/v1/reminders?start_now=${false}`, {
+      await apiFetch<any>(`/api/v1/reminders?start_now=${false}`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
       toast.success("Reminder created");
+      setForm({ title: "", time: "09:00", due_date: "", meta: "", priority: "normal" });
       setShowCreate(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to create reminder");
@@ -242,6 +243,15 @@ export function DashboardMainContent({ user }: { user: { name: string; email: st
               <div>
                 <label className="block text-sm font-medium text-gray-700">Due date</label>
                 <input value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} type="date" className="mt-1 block w-full rounded-md border-gray-200 shadow-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Urgency</label>
+                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="mt-1 block w-full rounded-md border-gray-200 shadow-sm">
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
               </div>
               <div className="flex items-center gap-2">
                 <button type="submit" className="rounded-md bg-black text-white px-3 py-2">Create</button>

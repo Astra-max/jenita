@@ -36,7 +36,7 @@ func Load() *Config {
 		DatabasePath:        getEnv("DATABASE_PATH", "./jenita.db"),
 		JWTSecret:           getEnv("JWT_SECRET", "jenita-voice-secret-key-development-2026"),
 		GeminiAPIKey:        getEnv("GEMINI_API_KEY", ""),
-		GeminiModel: getEnv("GEMINI_MODEL", "models/gemini-3.8-live"),
+		GeminiModel: getEnv("GEMINI_MODEL", "models/gemini-2.0-flash-live-001"),
 		VoiceName:           getEnv("VOICE_NAME", "Aoede"),
 		MaxReconnectRetries: maxRetries,
 		Environment:         getEnv("ENVIRONMENT", "development"),

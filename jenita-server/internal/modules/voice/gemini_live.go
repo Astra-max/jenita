@@ -157,7 +157,7 @@ func (b *GeminiLiveBridge) sendGeminiSetup(conn *websocket.Conn) error {
 		"setup": map[string]interface{}{
 			"model": b.cfg.GeminiModel,
 			"generationConfig": map[string]interface{}{
-				"responseModalities": []string{"AUDIO"},
+				"responseModalities": []string{"TEXT", "AUDIO"},
 				"speechConfig": map[string]interface{}{
 					"voiceConfig": map[string]interface{}{
 						"prebuiltVoiceConfig": map[string]interface{}{
