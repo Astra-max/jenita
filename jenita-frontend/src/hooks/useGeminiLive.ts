@@ -301,7 +301,6 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
         ],
         turnComplete: true,
       },
-      text,
     };
 
     wsRef.current.send(JSON.stringify(payload));
