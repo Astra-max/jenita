@@ -209,7 +209,7 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
       {/* Mic & Text Input Controls */}
       <div className="space-y-2">
         <button
-          onClick={toggleMic}
+          onClick={() => toggleMic()}
           className={cn(
             "flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition-all",
             isMicActive
