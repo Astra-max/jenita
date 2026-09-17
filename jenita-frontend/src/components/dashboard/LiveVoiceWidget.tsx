@@ -21,6 +21,8 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
     audioLevel,
     messages,
     connect,
+    requestMicPermission,
+    startMic,
     toggleMic,
     sendText,
   } = useGeminiLive({ onTaskUpdated });
@@ -139,19 +141,24 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
           className={audioLevel > 0 ? "text-pink-300" : "text-white/60"}
         />
         {statusMessage && (
-          <p className="mt-2 text-center text-[11px] text-white/60 line-clamp-1">
+          <p className="mt-2 text-center text-[11px] text-white/70 line-clamp-1">
             {statusMessage}
           </p>
         )}
 
-        {/* Microphone permission prompt banner */}
+        {/* Explicit permission / activation prompt */}
         {micPermission !== 'granted' && (
           <div className="absolute inset-x-2 -bottom-8 rounded-md bg-white/5 p-2 text-xs text-white/80 flex items-center justify-between gap-2">
             <div>Microphone permission needed to speak with Jenita.</div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => toggleMic()}
-                className="rounded-md bg-bloom-400 px-2 py-1 text-[11px] font-semibold"
+                onClick={async () => {
+                  const granted = await requestMicPermission();
+                  if (granted) {
+                    await startMic();
+                  }
+                }}
+                className="rounded-md bg-bloom-400 px-2 py-1 text-[11px] font-semibold text-ink"
               >
                 Allow microphone
               </button>
@@ -177,16 +184,16 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
-                    "rounded-lg p-2 leading-relaxed",
-                    m.speaker === "user" && "ml-auto bg-bloom-500/20 text-bloom-200",
-                    m.speaker === "jenita" && "mr-auto bg-white/10 text-white/90",
-                    m.speaker === "system" && "mx-auto bg-amber-500/15 text-amber-200 font-medium"
+                    "rounded-lg p-2 leading-relaxed text-white",
+                    m.speaker === "user" && "ml-auto bg-bloom-500/20 text-bloom-100",
+                    m.speaker === "jenita" && "mr-auto bg-white/10 text-white",
+                    m.speaker === "system" && "mx-auto bg-amber-500/15 text-amber-100 font-medium"
                   )}
                 >
-                  <span className="font-semibold capitalize text-white/50 block text-[10px] mb-0.5">
+                  <span className="font-semibold capitalize text-white/75 block text-[10px] mb-0.5">
                     {m.speaker === "system" ? "Action" : m.speaker}
                   </span>
-                  {m.text}
+                  <span className="text-white">{m.text}</span>
                 </motion.div>
               ))
           )}
@@ -209,7 +216,17 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
       {/* Mic & Text Input Controls */}
       <div className="space-y-2">
         <button
-          onClick={() => toggleMic()}
+          onClick={async () => {
+            if (isMicActive) {
+              toggleMic();
+              return;
+            }
+
+            const granted = await requestMicPermission();
+            if (granted) {
+              await startMic();
+            }
+          }}
           className={cn(
             "flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition-all",
             isMicActive
@@ -217,8 +234,8 @@ export function LiveVoiceWidget({ onTaskUpdated }: LiveVoiceWidgetProps) {
               : "bg-bloom-400 text-ink hover:bg-bloom-300"
           )}
         >
-          {isMicActive ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          {isMicActive ? "Mute" : "Go"}
+          {isMicActive ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />} 
+          {isMicActive ? "Mute" : "Start listening"}
         </button>
 
         <form onSubmit={handleSend} className="relative flex items-center">

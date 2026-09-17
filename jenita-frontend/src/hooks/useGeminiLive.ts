@@ -72,6 +72,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
   const [audioLevel, setAudioLevel] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const connectPromiseRef = useRef<Promise<WebSocket | null> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const captureContextRef = useRef<AudioContext | null>(null);
@@ -80,6 +81,7 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectRef = useRef<(() => void) | null>(null);
   const shouldKeepConnectedRef = useRef(false);
+  const autoStartMicWhenConnectedRef = useRef<(() => Promise<void>) | null>(null);
 
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
@@ -145,13 +147,16 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
     }
   }, []);
 
-  const connect = useCallback(() => {
-    return new Promise<WebSocket | null>((resolve) => {
-      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-        resolve(wsRef.current);
-        return;
-      }
+  const connect = useCallback((): Promise<WebSocket | null> => {
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return Promise.resolve(wsRef.current);
+    }
 
+    if (connectPromiseRef.current) {
+      return connectPromiseRef.current;
+    }
+
+    const pendingConnect = new Promise<WebSocket | null>((resolve) => {
       shouldKeepConnectedRef.current = true;
       setStatus("connecting");
       setStatusMessage("Connecting to Jenita voice server...");
@@ -160,11 +165,17 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
         const ws = new WebSocket(getWebSocketURL());
         wsRef.current = ws;
 
-        ws.onopen = () => {
+        ws.onopen = async () => {
           setStatus("connected");
           setReconnectAttempt(0);
           setStatusMessage("Voice session live and listening");
           resolve(ws);
+
+          try {
+            await autoStartMicWhenConnectedRef.current?.();
+          } catch (error) {
+            console.warn("Auto microphone activation failed after connection:", error);
+          }
         };
 
         ws.onmessage = (event) => {
@@ -177,10 +188,24 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
                 raw = new TextDecoder().decode(new Uint8Array(raw));
               }
 
-              const msg = typeof raw === "string" ? JSON.parse(raw) : raw;
+              if (typeof raw !== "string") {
+                return;
+              }
+
+              const msg = JSON.parse(raw);
 
               if (msg && typeof msg === "object" && "type" in msg) {
-                const typed = msg as Record<string, any>;
+                const typed = msg as Record<string, unknown> & {
+                  type?: string;
+                  status?: string;
+                  attempt?: number;
+                  max_attempts?: number;
+                  message?: string;
+                  tool?: string;
+                  result?: unknown;
+                  speaker?: string;
+                  text?: string;
+                };
 
                 if (typed.type === "connection_status") {
                   if (typed.status === "reconnecting") {
@@ -199,14 +224,19 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
                 }
 
                 if (typed.type === "tool_call_executed") {
-                  const toolMsg = typed.result?.message || `Executed ${typed.tool}`;
+                  const toolName = typeof typed.tool === "string" ? typed.tool : "tool";
+                  const result = typed.result as Record<string, unknown> | undefined;
+                  const toolMsg = result && typeof result === "object" && "message" in result
+                    ? String((result as Record<string, unknown>).message ?? `Executed ${toolName}`)
+                    : `Executed ${toolName}`;
+
                   setMessages((prev) => [
                     ...prev,
                     {
                       id: Math.random().toString(),
                       speaker: "system",
                       text: `⚡ ${toolMsg}`,
-                      toolCall: { name: typed.tool, result: typed.result },
+                      toolCall: { name: toolName, result: typed.result },
                       timestamp: Date.now(),
                     },
                   ]);
@@ -216,13 +246,13 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
                 }
 
                 if (typed.type === "transcript") {
-                  const text = String(typed.text || "");
+                  const text = typeof typed.text === "string" ? typed.text : "";
                   if (typed.speaker === "jenita" && text) speakText(text);
                   setMessages((prev) => [
                     ...prev,
                     {
                       id: Math.random().toString(),
-                      speaker: typed.speaker,
+                      speaker: (typed.speaker as "user" | "jenita" | "system") || "jenita",
                       text,
                       timestamp: Date.now(),
                     },
@@ -232,23 +262,60 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
               }
 
               if (msg && typeof msg === "object" && "serverContent" in msg) {
-                const typed = msg as Record<string, any>;
-                for (const part of typed.serverContent?.modelTurn?.parts || []) {
-                  if (part.inlineData?.data) {
-                    playPcmChunk(part.inlineData.data);
+                const typed = msg as Record<string, unknown> & {
+                  serverContent?: {
+                    modelTurn?: {
+                      parts?: Array<Record<string, unknown>>;
+                    };
+                    outputTranscription?: {
+                      text?: string;
+                    };
+                  };
+                };
+                const parts = Array.isArray(typed.serverContent?.modelTurn?.parts)
+                  ? (typed.serverContent?.modelTurn?.parts as Array<Record<string, unknown>>)
+                  : [];
+                const textParts: string[] = [];
+
+                for (const part of parts) {
+                  const inlineData = part.inlineData as Record<string, unknown> | undefined;
+                  const audioData = inlineData && typeof inlineData.data === "string" ? inlineData.data : "";
+                  if (audioData) {
+                    playPcmChunk(audioData);
                   }
-                  if (part.text) {
-                    speakText(part.text);
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        id: Math.random().toString(),
-                        speaker: "jenita",
-                        text: part.text,
-                        timestamp: Date.now(),
-                      },
-                    ]);
+
+                  const partText = typeof part.text === "string" ? part.text : "";
+                  if (partText) {
+                    textParts.push(partText);
                   }
+                }
+
+                const outputText = textParts.join(" ").trim();
+                if (outputText) {
+                  speakText(outputText);
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: Math.random().toString(),
+                      speaker: "jenita",
+                      text: outputText,
+                      timestamp: Date.now(),
+                    },
+                  ]);
+                }
+
+                const transcriptionText = typed.serverContent?.outputTranscription?.text;
+                if (transcriptionText) {
+                  speakText(transcriptionText);
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: Math.random().toString(),
+                      speaker: "jenita",
+                      text: transcriptionText,
+                      timestamp: Date.now(),
+                    },
+                  ]);
                 }
               }
             } catch (err) {
@@ -292,7 +359,12 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
         setStatusMessage(message);
         resolve(null);
       }
+    }).finally(() => {
+      connectPromiseRef.current = null;
     });
+
+    connectPromiseRef.current = pendingConnect;
+    return pendingConnect;
   }, [onTaskUpdated, playPcmChunk, speakText]);
 
   useEffect(() => {
@@ -352,9 +424,8 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
             },
           ]);
           wsRef.current.send(JSON.stringify({
-            clientContent: {
-              turns: [{ role: "user", parts: [{ text: trimmed }] }],
-              turnComplete: true,
+            realtimeInput: {
+              text: trimmed,
             },
           }));
         }
@@ -373,9 +444,8 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
     ]);
 
     wsRef.current.send(JSON.stringify({
-      clientContent: {
-        turns: [{ role: "user", parts: [{ text: trimmed }] }],
-        turnComplete: true,
+      realtimeInput: {
+        text: trimmed,
       },
     }));
   }, [connect]);
@@ -445,7 +515,10 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
 
         wsRef.current.send(JSON.stringify({
           realtimeInput: {
-            mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: base64Audio }],
+            audio: {
+              mimeType: "audio/pcm;rate=16000",
+              data: base64Audio,
+            },
           },
         }));
       };
@@ -459,6 +532,21 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
       console.error("Mic error:", err);
     }
   }, [connect, getAudioContext, hasVoiceConsent, requestMicPermission]);
+
+  useEffect(() => {
+    autoStartMicWhenConnectedRef.current = async () => {
+      if (isMicActive) return;
+
+      const consentGranted = hasVoiceConsent() || (await requestMicPermission());
+      if (!consentGranted) return;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        return;
+      }
+
+      await startMic();
+    };
+  }, [hasVoiceConsent, isMicActive, requestMicPermission, startMic]);
 
   const toggleMic = useCallback(async () => {
     if (isMicActive) {
@@ -496,6 +584,8 @@ export function useGeminiLive({ onTaskUpdated }: UseGeminiLiveOptions = {}) {
     messages,
     connect,
     disconnect,
+    requestMicPermission,
+    startMic,
     toggleMic,
     sendText,
   };

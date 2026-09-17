@@ -1,5 +1,8 @@
 const TOKEN_KEY = "jenita_auth_token";
 
+export const geminiWSURL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
+export const modelID = "models/gemini-2.5-flash-native-audio-latest";
+
 export interface User {
   id: string;
   email: string;
@@ -48,7 +51,15 @@ export function getWebSocketURL(path: string = "/api/v1/ws/live"): string {
   if (configuredBase) {
     const base = configuredBase.replace(/\/$/, "");
     const token = getToken();
-    const query = token ? `?token=${encodeURIComponent(token)}` : "";
+    const separator = base.includes("?") ? "&" : "?";
+
+    if (base.includes("generativelanguage.googleapis.com")) {
+      const modelParam = `model=${encodeURIComponent(modelID)}`;
+      const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+      return `${base}${separator}${modelParam}${tokenParam}`;
+    }
+
+    const query = token ? `${separator}token=${encodeURIComponent(token)}` : "";
     return `${base}${path}${query}`;
   }
 
