@@ -16,16 +16,23 @@ import (
 	"jenita-server/internal/modules/tasks"
 )
 
+const (
+	// Gemini Live API endpoint
+	geminiWSURL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+	// Model for native audio dialog (Live API)
+	modelID = "models/gemini-2.5-flash-native-audio-latest"
+)
+
 type GeminiLiveBridge struct {
-	cfg         *config.Config
-	taskService tasks.Service
-	clientConn  *websocket.Conn
-	userID      string
+	cfg          *config.Config
+	taskService  tasks.Service
+	clientConn   *websocket.Conn
+	userID       string
 	reconnectMgr *ReconnectManager
 	upstreamConn *websocket.Conn
-	mu          sync.Mutex
-	ctx         context.Context
-	cancel      context.CancelFunc
+	mu           sync.Mutex
+	ctx          context.Context
+	cancel       context.CancelFunc
 }
 
 func NewGeminiLiveBridge(
@@ -86,12 +93,15 @@ func (b *GeminiLiveBridge) Start() {
 func (b *GeminiLiveBridge) connectAndStream(clientMsgChan <-chan []byte) error {
 	b.reconnectMgr.SetState(StateConnecting, "Establishing connection to Google Gemini Live API...")
 
-	geminiURL := url.URL{
-	Scheme:   "wss",
-	Host:     "generativelanguage.googleapis.com",
-	Path:     "/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent",
-	RawQuery: "key=" + b.cfg.GeminiAPIKey,
-}
+	geminiURL, err := url.Parse(geminiWSURL)
+	if err != nil {
+		return fmt.Errorf("invalid Gemini Live WebSocket URL: %w", err)
+	}
+	if b.cfg.GeminiAPIKey != "" {
+		q := geminiURL.Query()
+		q.Set("key", b.cfg.GeminiAPIKey)
+		geminiURL.RawQuery = q.Encode()
+	}
 
 	dialer := websocket.DefaultDialer
 	dialer.HandshakeTimeout = 10 * time.Second
@@ -126,9 +136,9 @@ func (b *GeminiLiveBridge) connectAndStream(clientMsgChan <-chan []byte) error {
 	b.reconnectMgr.SetState(StateConnected, "Connected to Google Gemini Live API (Audio Streaming Ready)")
 	log.Println("[GeminiLive] Connected and setup successfully sent!")
 	b.sendToClient(map[string]interface{}{
-		"type": "transcript",
+		"type":    "transcript",
 		"speaker": "jenita",
-		"text": "Hello! I’m Jenita. I’m ready to help with your reminders, agenda, and daily planning.",
+		"text":    "Hello! I’m Jenita. I’m ready to help with your reminders, agenda, and daily planning.",
 	})
 
 	// 2. Start two concurrent streams: client->upstream, upstream->client
@@ -162,7 +172,7 @@ func (b *GeminiLiveBridge) sendGeminiSetup(conn *websocket.Conn) error {
 		"setup": map[string]interface{}{
 			"model": b.cfg.GeminiModel,
 			"generationConfig": map[string]interface{}{
-				"responseModalities": []string{"TEXT", "AUDIO"},
+				"responseModalities": []string{"AUDIO"},
 				"speechConfig": map[string]interface{}{
 					"voiceConfig": map[string]interface{}{
 						"prebuiltVoiceConfig": map[string]interface{}{
@@ -171,6 +181,8 @@ func (b *GeminiLiveBridge) sendGeminiSetup(conn *websocket.Conn) error {
 					},
 				},
 			},
+			"outputAudioTranscription": map[string]interface{}{},
+			"inputAudioTranscription":  map[string]interface{}{},
 			"systemInstruction": map[string]interface{}{
 				"parts": []map[string]interface{}{
 					{
